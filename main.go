@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	log "log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -55,9 +57,11 @@ func main() {
 
 func clean(mfClient minifluxClient, removeShorts bool, removeLives bool, httpClient httpClient) {
 	if !(removeShorts || removeLives) {
+		log.Warn("Nothing needs to be removed, skipping cleanup")
 		return
 	}
 
+	log.Info("Beginning cleanup")
 	entries, _ := mfClient.Entries(&mf.Filter{
 		Status: "unread",
 	})
@@ -79,7 +83,18 @@ func clean(mfClient minifluxClient, removeShorts bool, removeLives bool, httpCli
 		}
 	}
 
-	mfClient.UpdateEntries(idsToRemove, "removed")
+	if len(idsToRemove) == 0 {
+		log.Info("No entries to remove")
+	} else {
+		if len(idsToRemove) == 1 {
+			log.Info("Removing 1 entry")
+		} else {
+			log.Info(fmt.Sprintf("Removing %d entries", len(idsToRemove)))
+		}
+		mfClient.UpdateEntries(idsToRemove, "removed")
+	}
+
+	log.Info("Cleanup complete")
 }
 
 func isShort(client httpClient, entry *mf.Entry) bool {
